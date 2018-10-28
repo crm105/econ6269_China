@@ -41,7 +41,7 @@ keep <- c("code","year","Expenditure On GDP", "Net Exports Of Goods And Services
           "Government Consumption Expenditure", "Gross Fixed Capital Formation",
           "Private Consumption Expenditure" ,"Changes In Inventories", 
           "Statistical Discrepancy")
-rename <- c("code", "year", "GDP", "NX", "G", "I", "C", "inventory", "discrepency")
+rename <- c("code", "year", "GDP", "NX", "G", "I", "C", "inventory", "discrepancy")
 
 sing = sing[keep]
 colnames(sing) <- rename
@@ -55,7 +55,7 @@ sing$inventory <- NULL
 # Test to make sure our identity holds. It does, although some discrepencies are somewhat
 #large
 
-
+sing$test <- sing$GDP - sing$NX - sing$G - sing$I - sing$C - sing$discrepancy
 
 
 #Korea
@@ -126,9 +126,61 @@ jap <- unique(jap)
 jap$test <- jap$GDP - jap$NX - jap$G -jap$I - jap$C  
 jap$discrepancy <- 0 
 
+#China 
 
-# merge everything together
+chn <- read.csv("../data/China_GDP.csv", skip = 2, nrows =10 )
+
+chn$code <- "chn"
+chn <- melt(chn, id.vars = c("code","Indicators"), variable.name ="year", value.name = "value")
+chn <- dcast(chn, code + year   ~ Indicators)
+
+chn$year <- sapply(chn$year, gsub, pattern = "X", replacement = "")
+chn$year <- as.numeric(chn$year)
+
+#Before we know what to keep we need to understand which variables are subcomponents of our GDP identity
+#The below equation shows that I = Gross Capital formation = Gross Fixed Capital + Inventories
+
+test_I <- chn$`Gross Capital Formation(100 million yuan)` - 
+  chn$`Gross Fixed Capital Formation(100 million yuan)` - 
+  chn$`Changes in Inventories(100 million yuan)`
+
+test_I
+
+#Lets see about consumption: Here we see total consumption = G + C
+
+test_C <- chn$`Final Consumption Expenditure(100 million yuan)` -
+  chn$`Government Consumption Expenditure(100 million yuan)` - 
+  chn$`Household Consumption Expenditure(100 million yuan)`
+
+test_C
+
+#Rename and keep necessary columns, add a test and descrepancy column for merge. 
+
+keep = c("code", "year", "Gross Domestic Product by Expenditure Approach(100 million yuan)",
+        "Government Consumption Expenditure(100 million yuan)", "Gross Capital Formation(100 million yuan)",
+         "Household Consumption Expenditure(100 million yuan)",
+         "Net Exports of Goods and Services(100 million yuan)")
+
+rename <- c("code", "year", "GDP", "G", "I","C", "NX")
+
+chn = chn[keep]
+colnames(chn) <- rename
+
+chn$test <- chn$GDP - chn$G - chn$C - chn$I - chn$NX
+chn$discrepancy <- 0
+
+chn <- na.omit(chn)
+
+# merge everything together; drop test variable;  output to national_accounts.csv
 
 merge <- rbind(jap,kor)
+merge <- rbind(merge, sing)
+merge <- rbind(merge, chn)
+merge$test <- NULL
+
+write.csv(chn, "../data/national_accounts.csv")
+
+
+
 
 
